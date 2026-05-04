@@ -1,5 +1,4 @@
 package com.v2ray.ang.ui
-
 import android.content.Intent
 import android.content.res.ColorStateList
 import android.net.Uri
@@ -68,52 +67,21 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-// --- Авто-добавление вашего VLESS-сервера ---
+        // --- Авто-добавление вашего VLESS-сервера ---
         val prefs = PreferenceManager.getDefaultSharedPreferences(this)
         if (!prefs.getBoolean("auto_config_added", false)) {
-            try {
-                val configJson = """
-{
-  "outbounds": [{
-    "protocol": "vless",
-    "settings": {
-      "vnext": [{
-        "address": "108.165.33.123",
-        "port": 433,
-        "users": [{
-          "id": "3b1931d8-7245-4bf5-aff7-79ce1b70550b",
-          "flow": "xtls-rprx-vision",
-          "encryption": "none"
-        }]
-      }]
-    },
-    "streamSettings": {
-      "network": "tcp",
-      "security": "reality",
-      "realitySettings": {
-        "publicKey": "rsSGWA1TTgLSJpTua3uiOEa4nclGz2fx21zLqtCOZ2Y",
-        "serverName": "www.google.com",
-        "shortId": "ad3b7a4b",
-        "fingerprint": "chrome",
-        "spiderX": "/"
-      }
-    },
-    "tag": "proxy"
-  }]
-}
-                """.trimIndent()
-
-                val profileItem = ProfileItem.createFromJSON(configJson)
-                if (profileItem != null) {
-                    MmkvManager.INSTANCE.encodeServerConfig(profileItem.guid, profileItem)
-                    MmkvManager.INSTANCE.encodeSelectedServer(profileItem.guid)
+            val vlessLink = "vless://3b1931d8-7245-4bf5-aff7-79ce1b70550b@108.165.33.123:433?type=tcp&encryption=none&security=reality&pbk=rsSGWA1TTgLSJpTua3uiOEa4nclGz2fx21zLqtCOZ2Y&fp=chrome&sni=www.google.com&sid=ad3b7a4b&spx=%2F&flow=xtls-rprx-vision#erc5w31a"
+            lifecycleScope.launch(Dispatchers.IO) {
+                val (count, _) = AngConfigManager.importBatchConfig(vlessLink, mainViewModel.subscriptionId, false)
+                if (count > 0) {
+                    withContext(Dispatchers.Main) {
+                        mainViewModel.reloadServerList()
+                    }
                 }
-            } catch (e: Exception) {
-                e.printStackTrace()
+                prefs.edit().putBoolean("auto_config_added", true).apply()
             }
-            prefs.edit().putBoolean("auto_config_added", true).apply()
         }
-        // --- Конец авто-добавления --- 
+        // --- Конец авто-добавления ---
         setContentView(binding.root)
         setupToolbar(binding.toolbar, false, getString(R.string.title_server))
 
