@@ -8,6 +8,7 @@ import android.os.Bundle
 import android.view.KeyEvent
 import android.view.Menu
 import android.view.MenuItem
+import android.preference.PreferenceManager
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
@@ -66,45 +67,53 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)// --- Автоматическое добавление вашего сервера ---
-val prefs = PreferenceManager.getDefaultSharedPreferences(this)
-if (!prefs.getBoolean("auto_config_added", false)) {
-    val guid = java.util.UUID.randomUUID().toString()
-    val config = """{
-        "outbounds": [{
-            "protocol": "vless",
-            "settings": {
-                "vnext": [{
-                    "address": "108.165.33.123",
-                    "port": 433,
-                    "users": [{
-                        "id": "3b1931d8-7245-4bf5-aff7-79ce1b70550b",
-                        "flow": "xtls-rprx-vision",
-                        "encryption": "none"
-                    }]
-                }]
-            },
-            "streamSettings": {
-                "network": "tcp",
-                "security": "reality",
-                "realitySettings": {
-                    "publicKey": "rsSGWA1TTgLSJpTua3uiOEa4nclGz2fx21zLqtCOZ2Y",
-                    "serverName": "www.google.com",
-                    "shortId": "ad3b7a4b",
-                    "fingerprint": "chrome",
-                    "spiderX": "/"
-                }
-            },
-            "tag": "proxy"
+        super.onCreate(savedInstanceState)
+// --- Авто-добавление вашего VLESS-сервера ---
+        val prefs = PreferenceManager.getDefaultSharedPreferences(this)
+        if (!prefs.getBoolean("auto_config_added", false)) {
+            try {
+                val configJson = """
+{
+  "outbounds": [{
+    "protocol": "vless",
+    "settings": {
+      "vnext": [{
+        "address": "108.165.33.123",
+        "port": 433,
+        "users": [{
+          "id": "3b1931d8-7245-4bf5-aff7-79ce1b70550b",
+          "flow": "xtls-rprx-vision",
+          "encryption": "none"
         }]
-    }"""
-    MmkvManager.encodeServerConfig(guid, config)
-    val defConfig = AppConfig(guid, "erc5w31a", "108.165.33.123", "433")
-    MmkvManager.encodeSingleConfig(guid, defConfig)
-    MmkvManager.encodeSelectedServer(guid)
-    prefs.edit().putBoolean("auto_config_added", true).apply()
+      }]
+    },
+    "streamSettings": {
+      "network": "tcp",
+      "security": "reality",
+      "realitySettings": {
+        "publicKey": "rsSGWA1TTgLSJpTua3uiOEa4nclGz2fx21zLqtCOZ2Y",
+        "serverName": "www.google.com",
+        "shortId": "ad3b7a4b",
+        "fingerprint": "chrome",
+        "spiderX": "/"
+      }
+    },
+    "tag": "proxy"
+  }]
 }
-// --- Конец вставки ---
+                """.trimIndent()
+
+                val profileItem = ProfileItem.createFromJSON(configJson)
+                if (profileItem != null) {
+                    MmkvManager.INSTANCE.encodeServerConfig(profileItem.guid, profileItem)
+                    MmkvManager.INSTANCE.encodeSelectedServer(profileItem.guid)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+            prefs.edit().putBoolean("auto_config_added", true).apply()
+        }
+        // --- Конец авто-добавления --- 
         setContentView(binding.root)
         setupToolbar(binding.toolbar, false, getString(R.string.title_server))
 
